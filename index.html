@@ -1,0 +1,870 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ระบบบันทึกหวยออนไลน์ - Firebase Realtime Database</title>
+  <style>
+    :root {
+      --ink: #10211f;
+      --muted: #5c6764;
+      --panel: rgba(255, 255, 255, .95);
+      --line: rgba(16, 33, 31, .14);
+      --green: #0f766e;
+      --green-dark: #115e59;
+      --gold: #f59e0b;
+      --red: #dc2626;
+      --ok: #15803d;
+      --bg-gradient: linear-gradient(135deg, #0f172a, #0f766e, #1e293b);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: Arial, "Noto Sans Thai", sans-serif;
+      background: var(--bg-gradient);
+      background-attachment: fixed;
+      padding: 20px 10px;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      color: #ffffff;
+      margin-bottom: 25px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    header h1 {
+      margin: 0 0 10px 0;
+      font-size: 24pt;
+    }
+
+    .tabs {
+      display: table;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px 12px 0 0;
+      overflow: hidden;
+      border-bottom: 3px solid var(--green);
+    }
+
+    .tab {
+      display: table-cell;
+      text-align: center;
+      padding: 15px 10px;
+      color: #ffffff;
+      cursor: pointer;
+      font-weight: bold;
+      background: rgba(0, 0, 0, 0.2);
+      transition: background 0.2s;
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .tab:last-child {
+      border-right: none;
+    }
+
+    .tab:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .tab.active {
+      background: var(--green);
+      color: #ffffff;
+    }
+
+    .panel {
+      display: none;
+      background: var(--panel);
+      padding: 25px;
+      border-radius: 0 0 12px 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    .panel.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Form & Controls */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-row {
+      display: table;
+      width: 100%;
+      margin-bottom: 15px;
+    }
+
+    .form-col {
+      display: table-cell;
+      padding-right: 15px;
+      vertical-align: middle;
+    }
+
+    .form-col:last-child {
+      padding-right: 0;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: var(--ink);
+    }
+
+    input[type="text"], input[type="number"], input[type="date"], select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font-size: 11pt;
+      font-family: inherit;
+      color: var(--ink);
+      background: #ffffff;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 11pt;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+      color: white;
+    }
+
+    .btn.green { background: var(--green); }
+    .btn.green:hover { background: var(--green-dark); }
+    .btn.gold { background: var(--gold); color: var(--ink); }
+    .btn.gold:hover { background: #d97706; }
+    .btn.red { background: var(--red); }
+    .btn.red:hover { background: #b91c1c; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      margin-bottom: 15px;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+    }
+
+    th {
+      background: rgba(15, 118, 110, 0.08);
+      color: var(--green);
+      font-weight: bold;
+    }
+
+    /* Statuses */
+    .status {
+      padding: 12px;
+      border-radius: 6px;
+      margin: 15px 0;
+      font-weight: bold;
+      font-size: 10.5pt;
+      background: #f3f4f6;
+      border-left: 4px solid var(--muted);
+    }
+
+    .status.ok {
+      background: #f0fdf4;
+      color: var(--ok);
+      border-left-color: var(--ok);
+    }
+
+    .status.bad {
+      background: #fef2f2;
+      color: var(--red);
+      border-left-color: var(--red);
+    }
+
+    /* Dashboard Metrics & Lists */
+    .metrics-grid {
+      display: table;
+      width: 100%;
+      table-layout: fixed;
+      margin-bottom: 25px;
+    }
+
+    .metric-card {
+      display: table-cell;
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+      border: 1px solid var(--line);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    
+    .metric-spacer {
+      display: table-cell;
+      width: 15px;
+    }
+
+    .metric-card h3 {
+      margin: 0 0 10px 0;
+      font-size: 11pt;
+      color: var(--muted);
+    }
+
+    .metric-card .value {
+      font-size: 20pt;
+      font-weight: bold;
+      color: var(--green);
+    }
+
+    .list-section {
+      margin-top: 20px;
+    }
+
+    .list-section h3 {
+      border-left: 4px solid var(--green);
+      padding-left: 10px;
+      margin-bottom: 15px;
+      color: var(--green);
+    }
+
+    .item {
+      display: block;
+      background: #ffffff;
+      padding: 12px 15px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border: 1px solid var(--line);
+    }
+
+    .item div {
+      display: inline-block;
+      width: 70%;
+    }
+
+    .item div b {
+      display: block;
+      font-size: 11pt;
+    }
+
+    .item div span {
+      font-size: 9.5pt;
+      color: var(--muted);
+    }
+
+    .item .amount {
+      display: inline-block;
+      width: 30%;
+      text-align: right;
+      font-weight: bold;
+      font-size: 13pt;
+      color: var(--ink);
+      vertical-align: middle;
+    }
+
+    .item.winner div b span {
+      display: inline;
+    }
+
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 20px;
+      background: #f9fafb;
+      border-radius: 6px;
+      border: 1px dashed var(--line);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>ระบบจัดการข้อมูลหวยออนไลน์</h1>
+      <p style="margin:0; opacity:0.8;">ขับเคลื่อนข้อมูลแบบ Realtime ผ่านระบบคลาวด์ฐานข้อมูล Firebase</p>
+    </header>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="entry">บันทึกข้อมูลคีย์มือ / ข้อความ</div>
+      <div class="tab" data-tab="dashboard">แดชบอร์ดสรุปยอด</div>
+      <div class="tab" data-tab="results">ตรวจรางวัล & สรุปผล</div>
+    </div>
+
+    <!-- PANEL 1: DATA ENTRY -->
+    <div id="entry" class="panel active">
+      <div class="form-row">
+        <div class="form-col" style="width: 200px;">
+          <label for="drawDate">ประจำงวดวันที่</label>
+          <input type="date" id="drawDate">
+        </div>
+        <div class="form-col">
+          <!-- ซ่อนปุ่ม Google Sheet เก่าออกไปอย่างถาวร -->
+          <a id="sheetLink" href="#" style="display:none;"></a>
+        </div>
+      </div>
+
+      <div class="form-group" style="background: rgba(15, 118, 110, 0.04); padding: 15px; border-radius: 8px; border: 1px dashed var(--green);">
+        <label for="ocrText">วางข้อความเพื่อแยกรายการอัตโนมัติ (เช่น "สมชาย บน 45 100")</label>
+        <textarea id="ocrText" placeholder="พิมพ์หรือวางข้อความที่นี่ เช่น&#10;สมชาย บน 45 100&#10;สมหญิง ล่าง 82 200"></textarea>
+        <div style="margin-top: 10px; text-align: right;">
+          <button type="button" id="parseTextBtn" class="btn gold">แยกข้อมูลจากข้อความ</button>
+        </div>
+      </div>
+
+      <div id="uploadStatus" class="status">พร้อมบันทึกข้อมูล</div>
+
+      <table id="entryTable">
+        <thead>
+          <tr>
+            <th>ชื่อผู้ซื้อ</th>
+            <th style="width: 120px;">ประเภท</th>
+            <th style="width: 120px;">ตัวเลข</th>
+            <th style="width: 150px;">จำนวนเงิน (บาท)</th>
+            <th style="width: 80px;">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="entryRows">
+          <!-- แถวกรอกข้อมูลจะถูกเพิ่มแบบไดนามิกที่นี่ -->
+        </tbody>
+      </table>
+
+      <div style="margin-top: 20px;">
+        <button type="button" id="addRowBtn" class="btn gold">+ เพิ่มแถวใหม่</button>
+        <button type="button" id="saveBtn" class="btn green" style="float: right;">บันทึกทั้งหมดลง Firebase</button>
+      </div>
+      <div style="clear: both;"></div>
+    </div>
+
+    <!-- PANEL 2: DASHBOARD -->
+    <div id="dashboard" class="panel">
+      <div style="text-align: right; margin-bottom: 15px;">
+        <button type="button" id="refreshBtn" class="btn green">🔄 อัปเดตข้อมูล</button>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <h3>จำนวนรายการทั้งหมด</h3>
+          <div id="totalRows" class="value">0</div>
+        </div>
+        <div class="metric-spacer"></div>
+        <div class="metric-card">
+          <h3>ยอดเงินรวมรวมทุกงวด (บาท)</h3>
+          <div id="totalAmount" class="value">0</div>
+        </div>
+        <div class="metric-spacer"></div>
+        <div class="metric-card">
+          <h3>ผู้ซื้อยอดสูงสุด</h3>
+          <div id="topBuyerName" class="value" style="font-size: 14pt; padding-top: 8px;">-</div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-col" style="width: 33.33%; padding-right: 15px;">
+          <div class="list-section">
+            <h3>Top 10 คนซื้อยอดสูงสุด</h3>
+            <div id="topBuyers"></div>
+          </div>
+        </div>
+        <div class="form-col" style="width: 33.33%; padding-right: 15px;">
+          <div class="list-section">
+            <h3>Top 10 เลขขายดี</h3>
+            <div id="topNumbers"></div>
+          </div>
+        </div>
+        <div class="form-col" style="width: 33.33%;">
+          <div class="list-section">
+            <h3>10 รายการล่าสุด</h3>
+            <div id="recentEntries"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 3: WINNERS -->
+    <div id="results" class="panel">
+      <div class="form-row">
+        <div class="form-col" style="width: 25%;">
+          <label for="resultDrawDate">งวดวันที่ตรวจสอบ</label>
+          <input type="date" id="resultDrawDate">
+        </div>
+        <div class="form-col" style="width: 20%;">
+          <label for="topNumber">รางวัลบน (3 ตัวท้าย / 2 ตัว)</label>
+          <input type="text" id="topNumber" placeholder="เช่น 990411">
+        </div>
+        <div class="form-col" style="width: 20%;">
+          <label for="bottomNumber">รางวัลล่าง (2 ตัวล่าง)</label>
+          <input type="text" id="bottomNumber" placeholder="เช่น 46">
+        </div>
+        <div class="form-col" style="width: 35%;">
+          <label for="winnerBuyerKeyword">กรองเฉพาะชื่อคนซื้อ (ระบุหรือไม่ก็ได้)</label>
+          <input type="text" id="winnerBuyerKeyword" placeholder="ระบุชื่อเพื่อค้นหา">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-col">
+          <label for="drawNote">บันทึกเพิ่มเติมสำหรับงวดนี้</label>
+          <input type="text" id="drawNote" placeholder="รายละเอียดของงวด เช่น ผลการออกรางวัลอย่างเป็นทางการ">
+        </div>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <button type="button" id="findBtn" class="btn gold">🔍 ตรวจรางวัลเชิงลึก</button>
+        <button type="button" id="saveDrawBtn" class="btn green">💾 บันทึกผลรางวัลเข้างวด</button>
+        <button type="button" id="latestDrawBtn" class="btn red" style="float: right;">ดึงผลงวดล่าสุด</button>
+      </div>
+
+      <div id="resultStatus" class="status">ระบุผลรางวัลแล้วกดตรวจรางวัล</div>
+
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <h3>จำนวนบิลที่ถูกรางวัล</h3>
+          <div id="winnerTotal" class="value">0</div>
+        </div>
+        <div class="metric-spacer"></div>
+        <div class="metric-card">
+          <h3>จำนวนผู้ถูกรางวัล (คน)</h3>
+          <div id="winnerBuyerTotal" class="value">0</div>
+        </div>
+        <div class="metric-spacer"></div>
+        <div class="metric-card">
+          <h3>ยอดเงินรวมที่ถูกรางวัล</h3>
+          <div id="winnerAmountTotal" class="value">0</div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-col" style="width: 40%; padding-right: 15px; vertical-align: top;">
+          <div class="list-section">
+            <h3>สรุปผู้โชคดีรายบุคคล</h3>
+            <div id="winnerSummary"></div>
+          </div>
+        </div>
+        <div class="form-col" style="width: 60%; vertical-align: top;">
+          <div class="list-section">
+            <h3>รายละเอียดรายการที่ถูกรางวัลทั้งหมด</h3>
+            <div id="winnerList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FIREBASE SYSTEM JAVASCRIPT -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, push, set, get, query, orderByChild, equalTo } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    // กำหนดโครงสร้าง Configuration ของ Firebase Realtime Database ยึดตามสิทธิ์โครงการของคุณ
+    const firebaseConfig = {
+      apiKey: "AIzaSyDfkCItwUdfeJgGaaOCJYnLu9NXBchtark",
+      authDomain: "lotto-online-6faf6.firebaseapp.com",
+      databaseURL: "https://lotto-online-6faf6-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "lotto-online-6faf6",
+      storageBucket: "lotto-online-6faf6.firebasestorage.app",
+      messagingSenderId: "133139059840",
+      appId: "1:133139059840:web:3c7b3b7912c64f21d54265",
+      measurementId: "G-GZVQKDJ50D"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // Dom Utilities
+    const $ = id => document.getElementById(id);
+    const money = value => Number(value || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 });
+    const escapeHtml = value => String(value || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]);
+    const getToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+
+    // Initial Web Configuration Setup
+    $('drawDate').value = getToday();
+    $('resultDrawDate').value = getToday();
+    addEntryRow({ betType: 'บน' });
+    refreshDashboard();
+
+    // Tab Control Manager
+    document.querySelectorAll('.tab').forEach(button => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active'));
+        button.classList.add('active');
+        $(button.dataset.tab).classList.add('active');
+        if (button.dataset.tab === 'dashboard') refreshDashboard();
+      });
+    });
+
+    // Binding Controller Actions
+    $('saveBtn').addEventListener('click', saveRowsToFirebase);
+    $('parseTextBtn').addEventListener('click', parseTextLocal);
+    $('addRowBtn').addEventListener('click', () => addEntryRow({ betType: 'บน' }));
+    $('refreshBtn').addEventListener('click', refreshDashboard);
+    $('findBtn').addEventListener('click', () => findWinners(false));
+    $('saveDrawBtn').addEventListener('click', () => findWinners(true));
+    $('latestDrawBtn').addEventListener('click', findLatestWinners);
+
+    // 1. ระบบจำลองการดึงโครงสร้างอักขระ (Text Parser) ฝั่ง Client
+    function parseTextLocal() {
+      const text = $('ocrText').value.trim();
+      if (!text) {
+        setStatus('uploadStatus', 'กรุณากรอกข้อความก่อนทำการแยกข้อมูล', 'bad');
+        return;
+      }
+      
+      const lines = text.split('\n');
+      const rows = [];
+      // Regex Pattern จับกลุ่มข้อมูล: "ชื่ออักษร [เว้นวรรค] บน/ล่าง [เว้นวรรค] ตัวเลข [เว้นวรรค] จำนวนเงิน"
+      const regex = /([^\s]+)\s+(บน|ล่าง)\s+(\d{2,3})\s+(\d+)/;
+
+      lines.forEach(line => {
+        const cleanedLine = line.trim();
+        if(!cleanedLine) return;
+        const match = cleanedLine.match(regex);
+        if (match) {
+          rows.push({
+            buyerName: match[1],
+            betType: match[2],
+            number: match[3],
+            amount: Number(match[4])
+          });
+        }
+      });
+
+      if(rows.length > 0) {
+          renderEntryRows(rows);
+          setStatus('uploadStatus', `แยกสำเร็จ! พบข้อมูลที่เข้าพล็อตระบบ ${rows.length} รายการ`, 'ok');
+      } else {
+          setStatus('uploadStatus', `ไม่พบรูปแบบข้อความที่เข้าเกณฑ์จัดระเบียบข้อมูล (เช่น: ชื่อ บน 123 100)`, 'bad');
+      }
+    }
+
+    // 2. ฟังก์ชันบันทึกชุดโครงสร้างแถวข้อมูลตรงเข้าสู่ Firebase Node '/entries'
+    async function saveRowsToFirebase() {
+      const rows = collectRows();
+      if (!rows.length) {
+        setStatus('uploadStatus', 'ไม่พบข้อมูลในตารางที่สมบูรณ์พอสำหรับการจัดเก็บ (ตรวจสอบ ชื่อ, เลข, และยอดเงิน)', 'bad');
+        return;
+      }
+      setBusy(true);
+      setStatus('uploadStatus', 'กำลังเปิดช่องทางเชื่อมต่อและส่งข้อมูลชุดไปยัง Firebase...', '');
+
+      const drawDate = $('drawDate').value;
+      const timestamp = Date.now();
+      const entriesRef = ref(db, 'entries');
+
+      try {
+        const promises = rows.map(row => {
+            const newEntryRef = push(entriesRef);
+            return set(newEntryRef, {
+                ...row,
+                drawDate: drawDate,
+                timestamp: timestamp
+            });
+        });
+
+        await Promise.all(promises);
+        setStatus('uploadStatus', `จัดเก็บข้อมูลเข้าสู่ Realtime Database เรียบร้อยรวม ${rows.length} รายการ`, 'ok');
+        $('entryRows').innerHTML = '';
+        addEntryRow({ betType: 'บน' });
+        $('ocrText').value = '';
+      } catch (error) {
+        setStatus('uploadStatus', `เกิดข้อผิดพลาดคลาวด์: ${error.message}`, 'bad');
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    // 3. ฟังก์ชันดึงรายงาน Realtime Dashboard มาประมวลผลบนหน่วยความจำเบราว์เซอร์
+    async function refreshDashboard() {
+        try {
+            const snapshot = await get(ref(db, 'entries'));
+            if (!snapshot.exists()) {
+                renderDashboard({ totalRows: 0, totalAmount: 0, topBuyers: [], topNumbers: [], recentEntries: [] });
+                return;
+            }
+
+            const data = snapshot.val();
+            let totalRows = 0;
+            let totalAmount = 0;
+            const buyerStats = {};
+            const numberStats = {};
+            const recent = [];
+
+            Object.keys(data).forEach(key => {
+                const item = data[key];
+                totalRows++;
+                totalAmount += item.amount;
+
+                if (!buyerStats[item.buyerName]) buyerStats[item.buyerName] = { count: 0, amount: 0, buyerName: item.buyerName };
+                buyerStats[item.buyerName].count++;
+                buyerStats[item.buyerName].amount += item.amount;
+
+                const numKey = `${item.betType}-${item.number}`;
+                if (!numberStats[numKey]) numberStats[numKey] = { count: 0, amount: 0, betType: item.betType, number: item.number };
+                numberStats[numKey].count++;
+                numberStats[numKey].amount += item.amount;
+
+                recent.push({...item, id: key});
+            });
+
+            const topBuyers = Object.values(buyerStats).sort((a, b) => b.amount - a.amount).slice(0, 10);
+            const topNumbers = Object.values(numberStats).sort((a, b) => b.amount - a.amount).slice(0, 10);
+            recent.sort((a, b) => b.timestamp - a.timestamp);
+
+            renderDashboard({
+                totalRows, 
+                totalAmount, 
+                topBuyers, 
+                topNumbers, 
+                recentEntries: recent.slice(0, 10)
+            });
+
+        } catch(error) {
+            console.error("Firebase Sync Dashboard Error:", error);
+        }
+    }
+
+    // 4. ระบบการคำนวณและคัดกรองรายการตรวจหวยถูกรางวัล
+    async function findWinners(saveDraw) {
+      const drawDate = $('resultDrawDate').value;
+      const topNumber = $('topNumber').value.trim();
+      const bottomNumber = $('bottomNumber').value.trim();
+      const buyerKeyword = $('winnerBuyerKeyword').value.trim();
+      
+      setStatus('resultStatus', 'กำลังรวบรวมตั๋วเดิมพันจาก Firebase มาทำการคัดกรองผลรางวัล...', '');
+
+      if (saveDraw) {
+          const drawRef = push(ref(db, 'draws'));
+          await set(drawRef, {
+              drawDate, topNumber, bottomNumber, 
+              note: $('drawNote').value, 
+              timestamp: Date.now()
+          });
+      }
+
+      try {
+          const entriesQuery = query(ref(db, 'entries'), orderByChild('drawDate'), equalTo(drawDate));
+          const snapshot = await get(entriesQuery);
+          
+          let winners = [];
+          let uniqueBuyers = new Set();
+          let totalAmount = 0;
+          let summary = {};
+
+          if (snapshot.exists()) {
+              snapshot.forEach(child => {
+                  const entry = child.val();
+                  
+                  if (buyerKeyword && !entry.buyerName.includes(buyerKeyword)) return;
+
+                  let isWinner = false;
+                  let matchedType = "";
+
+                  // ลอจิกเปรียบเทียบค่าเลขท้ายตรงตามหลักงวดหวย
+                  if (entry.betType === 'บน' && topNumber && topNumber.endsWith(entry.number)) {
+                      isWinner = true;
+                      matchedType = `ถูกรางวัลบน เลข [${entry.number}]`;
+                  } else if (entry.betType === 'ล่าง' && bottomNumber && bottomNumber.endsWith(entry.number)) {
+                      isWinner = true;
+                      matchedType = `ถูกรางวัลล่าง เลข [${entry.number}]`;
+                  }
+
+                  if (isWinner) {
+                      winners.push({...entry, matched: matchedType});
+                      uniqueBuyers.add(entry.buyerName);
+                      totalAmount += entry.amount;
+
+                      if (!summary[entry.buyerName]) summary[entry.buyerName] = { count: 0, amount: 0, buyerName: entry.buyerName };
+                      summary[entry.buyerName].count++;
+                      summary[entry.buyerName].amount += entry.amount;
+                  }
+              });
+          }
+
+          renderWinners({
+              total: winners.length,
+              uniqueBuyers: uniqueBuyers.size,
+              totalAmount: totalAmount,
+              winnerSummary: Object.values(summary).sort((a,b) => b.amount - a.amount),
+              winners: winners
+          });
+          setStatus('resultStatus', `ตรวจสอบงวด ${drawDate} เสร็จสิ้น: ค้นพบบิลที่ถูกรางวัลทั้งหมด ${winners.length} รายการ`, winners.length ? 'ok' : '');
+
+      } catch (error) {
+          setStatus('resultStatus', `ตรวจสอบข้อมูลผิดพลาด: ${error.message}`, 'bad');
+      }
+    }
+
+    // ดึงประวัติผลงวดรางวัลล่าสุดที่เคยจัดบันทึกไว้ใน Node /draws
+    async function findLatestWinners() {
+      try {
+          setStatus('resultStatus', 'กำลังสืบค้นประวัติผลการออกรางวัลงวดล่าสุดจากเซิร์ฟเวอร์...', '');
+          const snapshot = await get(ref(db, 'draws'));
+          if (!snapshot.exists()) {
+              setStatus('resultStatus', 'ไม่พบประวัติผลรางวัลใดๆ ที่เคยบันทึกไว้ในระบบฐานข้อมูลนี้', 'bad');
+              return;
+          }
+          
+          let latestDraw = null;
+          snapshot.forEach(child => {
+              const draw = child.val();
+              if (!latestDraw || draw.timestamp > latestDraw.timestamp) {
+                  latestDraw = draw;
+              }
+          });
+
+          if(latestDraw) {
+              $('resultDrawDate').value = latestDraw.drawDate;
+              $('topNumber').value = latestDraw.topNumber || '';
+              $('bottomNumber').value = latestDraw.bottomNumber || '';
+              $('drawNote').value = latestDraw.note || '';
+              findWinners(false);
+          }
+      } catch (error) {
+          setStatus('resultStatus', error.message, 'bad');
+      }
+    }
+
+    // --- UI Rendering Assistants ---
+    function renderEntryRows(rows) {
+      $('entryRows').innerHTML = '';
+      if (!rows.length) addEntryRow({ betType: 'บน' });
+      rows.forEach(addEntryRow);
+    }
+
+    function addEntryRow(row = {}) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" class="buyer" value="${escapeHtml(row.buyerName || '')}" placeholder="ระบุชื่อผู้ซื้อ"></td>
+        <td>
+          <select class="betType">
+            <option value="บน"${row.betType === 'บน' ? ' selected' : ''}>บน</option>
+            <option value="ล่าง"${row.betType === 'ล่าง' ? ' selected' : ''}>ล่าง</option>
+          </select>
+        </td>
+        <td><input type="text" class="number" inputmode="numeric" maxlength="3" value="${escapeHtml(row.number || '')}" placeholder="ตัวเลข"></td>
+        <td><input type="number" class="amount" inputmode="decimal" min="0" step="1" value="${row.amount || ''}" placeholder="ระบุจำนวนเงิน"></td>
+        <td><button class="btn red" type="button" style="padding: 5px 10px; font-size: 9.5pt;">ลบ</button></td>
+      `;
+      tr.querySelector('button').addEventListener('click', () => tr.remove());
+      $('entryRows').appendChild(tr);
+    }
+
+    function collectRows() {
+      return Array.from($('entryRows').querySelectorAll('tr'))
+        .map(tr => ({
+          buyerName: tr.querySelector('.buyer').value.trim(),
+          betType: tr.querySelector('.betType').value,
+          number: tr.querySelector('.number').value.replace(/\D/g, ''),
+          amount: Number(tr.querySelector('.amount').value || 0)
+        }))
+        .filter(row => row.buyerName && row.number && row.amount > 0);
+    }
+
+    function renderDashboard(data) {
+      $('totalRows').textContent = money(data.totalRows);
+      $('totalAmount').textContent = money(data.totalAmount);
+      $('topBuyerName').textContent = data.topBuyers[0] ? `${data.topBuyers[0].buyerName} (${money(data.topBuyers[0].amount)} บาท)` : '-';
+      
+      renderList('topBuyers', data.topBuyers, item => `
+        <div><b>${escapeHtml(item.buyerName)}</b><span>ซื้อรวมทั้งสิ้น ${money(item.count)} รายการ</span></div>
+        <div class="amount">${money(item.amount)}</div>
+      `);
+      renderList('topNumbers', data.topNumbers, item => `
+        <div><b>${escapeHtml(item.betType)} ${escapeHtml(item.number)}</b><span>มีการแทงรวม ${money(item.count)} ครั้ง</span></div>
+        <div class="amount">${money(item.amount)}</div>
+      `);
+      renderList('recentEntries', data.recentEntries, item => `
+        <div><b>${escapeHtml(item.buyerName)} • ${escapeHtml(item.betType)} ${escapeHtml(item.number)}</b><span>งวดประจำ: ${escapeHtml(item.drawDate)}</span></div>
+        <div class="amount">${money(item.amount)}</div>
+      `);
+    }
+
+    function renderWinners(data) {
+      $('winnerTotal').textContent = money(data.total || 0);
+      $('winnerBuyerTotal').textContent = money(data.uniqueBuyers || 0);
+      $('winnerAmountTotal').textContent = money(data.totalAmount || 0);
+      
+      renderList('winnerSummary', data.winnerSummary || [], item => `
+        <div><b>${escapeHtml(item.buyerName)}</b><span>ถูกรางวัลทั้งหมด ${money(item.count)} รายการย่อย</span></div>
+        <div class="amount" style="color: var(--ok);">${money(item.amount)}</div>
+      `);
+      
+      const target = $('winnerList');
+      target.innerHTML = '';
+      if (!data.winners || !data.winners.length) {
+        target.innerHTML = '<div class="empty">ไม่มีรายการถูกรางวัลใดๆ ในงวดคัดกรองนี้</div>';
+        return;
+      }
+      data.winners.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'item winner';
+        div.innerHTML = `
+          <div>
+            <b>${escapeHtml(item.buyerName)} • <span style="color:var(--ok); font-weight: bold;">${escapeHtml(item.matched)}</span></b>
+            <span>บิลแทงงวดวันที่ ${escapeHtml(item.drawDate)}</span>
+          </div>
+          <div class="amount" style="color: var(--ok);">${money(item.amount)}</div>
+        `;
+        target.appendChild(div);
+      });
+    }
+
+    function renderList(id, rows, template) {
+      const target = $(id);
+      target.innerHTML = '';
+      if (!rows || !rows.length) {
+        target.innerHTML = '<div class="empty">ยังไม่มีสถิติสะสม</div>';
+        return;
+      }
+      rows.forEach(row => {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.innerHTML = template(row);
+        target.appendChild(div);
+      });
+    }
+
+    function setBusy(isBusy) {
+      ['saveBtn', 'parseTextBtn'].forEach(id => $(id).disabled = isBusy);
+    }
+
+    function setStatus(id, text, type) {
+      const el = $(id);
+      el.className = `status ${type || ''}`;
+      el.textContent = text;
+    }
+  </script>
+</body>
+</html>
